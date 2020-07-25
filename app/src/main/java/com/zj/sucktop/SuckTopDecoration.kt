@@ -25,6 +25,9 @@ class SuckTopDecoration : RecyclerView.ItemDecoration() {
         headerPaint.color = Color.GREEN
     }
 
+    /**
+     * 绘制跟随滑动的头部
+     */
     override fun onDraw(c: Canvas, parent: RecyclerView, state: RecyclerView.State) {
         super.onDraw(c, parent, state)
         if (parent.adapter is TestAdapter) {
@@ -33,42 +36,48 @@ class SuckTopDecoration : RecyclerView.ItemDecoration() {
 
             val left = parent.paddingLeft
             val right = parent.width - parent.paddingRight
-            for (index in 0 until childCount) {
-                val child = parent.get(index)
-                val position = parent.getChildAdapterPosition(child)
 
-                if (child.top - groupHeaderHeight - parent.paddingTop >= 0)
+            for (index in 0 until childCount) {
+                val view = parent[index]
+                val position = parent.getChildAdapterPosition(view)
+
+                if (view.top - parent.paddingTop - groupHeaderHeight >= 0) {
+                    // 需要考虑recycleView的paddingTop，recycleView滑出时不需要绘制
+                    val groupName = testAdapter.data[position].groupName
                     if (testAdapter.isGroupHeader(position)) {
                         c.drawRect(
-                            left.toFloat(), (child.top - groupHeaderHeight),
-                            right.toFloat(), child.top.toFloat(), headerPaint
+                            left.toFloat(), view.top - groupHeaderHeight,
+                            right.toFloat(), view.top.toFloat(), headerPaint
                         )
-                        val groupName = testAdapter.data[position].groupName
-                        textPaint.getTextBounds(
-                            groupName, 0, groupName.length, textRect
-                        )
+                        textPaint.getTextBounds(groupName, 0, groupName.length, textRect)
                         c.drawText(
                             groupName,
                             (left + 20).toFloat(),
-                            child.top - groupHeaderHeight / 2 + textRect.height() / 2,
+                            view.top - groupHeaderHeight / 2 + textRect.height() / 2,
                             textPaint
                         )
                     } else {
                         c.drawRect(
-                            left.toFloat(), (child.top - 4).toFloat(),
-                            right.toFloat(), child.top.toFloat(), headerPaint
+                            left.toFloat(), (view.top - 4).toFloat(),
+                            right.toFloat(), view.top.toFloat(), headerPaint
                         )
                     }
+                }
             }
         }
     }
 
+    /**
+     * 绘制悬停的头部
+     */
     override fun onDrawOver(c: Canvas, parent: RecyclerView, state: RecyclerView.State) {
         super.onDrawOver(c, parent, state)
 
         if (parent.adapter is TestAdapter) {
             val testAdapter = parent.adapter as TestAdapter
             val linearLayoutManager = parent.layoutManager as LinearLayoutManager
+
+            // 当前可见recycleView的第一个item
             val position = linearLayoutManager.findFirstVisibleItemPosition()
 
             val itemView = parent.findViewHolderForAdapterPosition(position)?.itemView
@@ -76,7 +85,9 @@ class SuckTopDecoration : RecyclerView.ItemDecoration() {
             val right = parent.width - parent.paddingRight
             val top = parent.paddingTop
 
+            // 第一个可见的item，被悬停头部挡住的时候，其实还在
             val groupHeader = testAdapter.isGroupHeader(position + 1)
+            val groupName = testAdapter.data[position].groupName
             if (groupHeader) {
                 itemView?.run {
                     val bottom =
@@ -85,14 +96,16 @@ class SuckTopDecoration : RecyclerView.ItemDecoration() {
                         left.toFloat(), top.toFloat(), right.toFloat(),
                         (top + bottom).toFloat(), headerPaint
                     )
-                    val groupName = testAdapter.data[position].groupName
                     textPaint.getTextBounds(
                         groupName, 0, groupName.length, textRect
                     )
+                    // 在视觉上文字也需要移动，裁剪画布和rect大小一样
                     c.clipRect(left, top, right, top + bottom)
                     c.drawText(
-                        groupName, left + 20.toFloat(), top + bottom
-                                - groupHeaderHeight / 2 + textRect.height() / 2.toFloat(), textPaint
+                        groupName,
+                        left + 20.toFloat(),
+                        top + bottom - groupHeaderHeight / 2 + textRect.height() / 2.toFloat(),
+                        textPaint
                     )
                 }
             } else {
@@ -103,7 +116,6 @@ class SuckTopDecoration : RecyclerView.ItemDecoration() {
                     top + groupHeaderHeight,
                     headerPaint
                 )
-                val groupName: String = testAdapter.data[position].groupName
                 textPaint.getTextBounds(groupName, 0, groupName.length, textRect)
                 c.drawText(
                     groupName,
@@ -116,7 +128,7 @@ class SuckTopDecoration : RecyclerView.ItemDecoration() {
     }
 
     /**
-     * 空出item与item之间的位置
+     * 空出item与item之间的位置，item与item之间的间隔
      */
     override fun getItemOffsets(
         outRect: Rect,
@@ -129,7 +141,7 @@ class SuckTopDecoration : RecyclerView.ItemDecoration() {
             val testAdapter = parent.adapter as TestAdapter
             val groupHeader = testAdapter.isGroupHeader(parent.getChildAdapterPosition(view))
             if (groupHeader) {
-                // 这一组的第一个
+                // 这一组的第一个，头部需要悬停的间隔
                 outRect.set(0, groupHeaderHeight.toInt(), 0, 0)
             } else {
                 outRect.set(0, 4, 0, 0)
